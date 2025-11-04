@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Tycoon — Incremental Clicker (Web)</title>
+<style>
+  :root{
+    --bg:#0f141b; --fg:#e8eef6; --muted:#93a1b; --panel:#1a212b; --panel2:#141a22; --acc:#2b3442; --ok:#4ad295; --warn:#f6c85f; --bad:#ef6f6c;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+  header{display:flex;align-items:center;gap:16px;padding:14px 16px;background:linear-gradient(180deg,var(--panel),var(--panel2));border-bottom:1px solid #0008;position:sticky;top:0;z-index:10}
+  header h1{font-size:18px;margin:0}
+  .stat{margin-right:16px;white-space:nowrap}
+  .ipo{margin-left:auto;display:flex;align-items:center;gap:8px}
+  progress{accent-color:var(--ok);height:10px}
+  main{display:grid;grid-template-columns: 1.2fr 1fr; gap:16px; padding:16px;}
+  .card{background:var(--panel); border:1px solid #0008; border-radius:14px; padding:12px;}
+  .title{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  button{background:#2c3950;border:1px solid #000; color:var(--fg); padding:10px 12px; border-radius:10px; cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .shop{display:flex;flex-direction:column;gap:8px;max-height:48vh;overflow:auto;padding-right:4px}
+  .row{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:var(--panel2);border:1px solid #0006}
+  .row .grow{flex:1;min-width:180px}
+  .row .muted{opacity:.7}
+  .tabs{display:flex;gap:6px;margin:6px 0 10px}
+  .tab{padding:8px 10px;border-radius:10px;background:var(--panel2);border:1px solid #0006;cursor:pointer}
+  .tab.active{outline:2px solid #3d4f6b}
+  .hidden{display:none}
+  footer{position:sticky;bottom:0;background:linear-gradient(0deg,var(--panel),var(--panel2));border-top:1px solid #0008;padding:8px 12px;color:#c9d4e5;display:flex;gap:10px;align-items:center}
+  .pill{padding:2px 8px;border-radius:999px;background:#223041;border:1px solid #0006}
+  a{color:#9ecbff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ach{display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🧠 AI Tycoon — Web</h1>
+    <div class="stat" id="statFunding">Funding: $0</div>
+    <div class="stat" id="statEPS">EPS: $0/s</div>
+    <div class="stat" id="statRep">Reputation: 0 (x1.0)</div>
+    <div class="ipo">
+      <label for="ipoProg">IPO</label>
+      <progress id="ipoProg" max="1" value="0"></progress>
+      <button id="btnPrestige">Go Public</button>
+    </div>
+  </header>
+
+  <main class="grid2">
+    <section class="card">
+      <div class="title"><strong>Play</strong><span id="clickInfo" class="pill">+ $1 / click</span></div>
+      <button id="btnClick" style="width:100%;font-size:18px">🚀 Ship Feature</button>
+      <div class="tabs">
+        <div class="tab active" data-tab="quickGens">Quick Generators</div>
+        <div class="tab" data-tab="quickUpg">Quick Upgrades</div>
+        <div class="tab" data-tab="stats">Stats</div>
+      </div>
+      <div id="quickGens" class="shop"></div>
+      <div id="quickUpg" class="shop hidden"></div>
+      <div id="stats" class="hidden">
+        <p id="statsBody"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="title"><strong>Management</strong></div>
+      <div class="tabs">
+        <div class="tab active" data-tab="tabGens">Generators</div>
+        <div class="tab" data-tab="tabUpg">Upgrades</div>
+        <div class="tab" data-tab="tabAch">Achievements</div>
+        <div class="tab" data-tab="tabSettings">Settings</div>
+      </div>
+      <div id="tabGens" class="shop"></div>
+      <div id="tabUpg" class="shop hidden"></div>
+      <div id="tabAch" class="shop hidden"></div>
+      <div id="tabSettings" class="hidden">
+        <div style="display:flex;gap:10px;align-items:center;margin:8px 0">
+          <label>Number format:</label>
+          <select id="fmt">
+            <option value="compact">Compact</option>
+            <option value="full">Full</option>
+          </select>
+          <label style="margin-left:12px">Autosave (s):</label>
+          <input type="number" id="autosave" min="5" max="600" value="30" style="width:80px">
+          <button id="btnExport">Export Save</button>
+          <input type="file" id="importFile" accept="application/json" style="display:none"/>
+          <button id="btnImport">Import Save</button>
+          <button id="btnReset" style="margin-left:auto;background:#4a1010">Hard Reset</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="status">Welcome to AI Tycoon Web. Press Space to Ship Feature.</span>
+    <span class="pill" id="autosavePill">Autosave: 30s</span>
+  </footer>
+
+<script>
+(function(){
+  // ------------------ Content ------------------
+  const Generators = {
+    intern:      { key:'intern',      name:'Intern Developer',    baseCost:15,     costMult:1.15, baseEPS:0.1,  owned:0, unlockedAt:0,     desc:'Sometimes compiles.' },
+    gpu:         { key:'gpu',         name:'GPU Rig',             baseCost:100,    costMult:1.15, baseEPS:1.0,  owned:0, unlockedAt:50,    desc:'Gaming GPUs moonlighting.' },
+    researcher:  { key:'researcher',  name:'Research Scientist',   baseCost:650,    costMult:1.17, baseEPS:7.5,  owned:0, unlockedAt:300,   desc:'SOTA trick, viral arXiv.' },
+    datacenter:  { key:'datacenter',  name:'Mini Datacenter',      baseCost:4200,   costMult:1.18, baseEPS:45,   owned:0, unlockedAt:2000,  desc:'A few racks, lots of heat.' },
+    foundation:  { key:'foundation',  name:'Foundation Model Team',baseCost:35000,  costMult:1.20, baseEPS:320,  owned:0, unlockedAt:20000, desc:'Mind‑blowing demos.' },
+    planetary:   { key:'planetary',   name:'Planet‑Scale Inference',baseCost:250000, costMult:1.22, baseEPS:2400, owned:0, unlockedAt:150000,desc:'Edge accelerators everywhere.' },
+  };
+
+  const Upgrades = {
+    click_hype:   { key:'click_hype',   name:'Launch Hype Site',       cost:50,     desc:'+2 click power.',           mult:1.0, addClick:2, requires:{} , purchased:false },
+    global_brand: { key:'global_brand', name:'Global Brand Deal',      cost:1000,   desc:'x1.5 production.',           mult:1.5, addClick:0, requires:{intern:10}, purchased:false },
+    tensor_cores: { key:'tensor_cores', name:'Tensor Cores Everywhere',cost:4000,   desc:'x1.8 production.',           mult:1.8, addClick:0, requires:{gpu:10}, purchased:false },
+    paper_rec:    { key:'paper_rec',    name:'SOTA Paper + Recsys',    cost:20000,  desc:'x2.2 production.',           mult:2.2, addClick:0, requires:{researcher:10}, purchased:false },
+    moe_scaling:  { key:'moe_scaling',  name:'MoE Scaling Laws',       cost:120000, desc:'x2.5 production.',           mult:2.5, addClick:0, requires:{foundation:5}, purchased:false },
+  };
+
+  const Achievements = {
+    first_click:   { key:'first_click',   name:'Hello, World(coin)', desc:'Click to earn funding once.', cond:{metric:'total_earned', threshold:1}, achieved:false },
+    first_million: { key:'first_million', name:'First Million',      desc:'Reach $1,000,000 lifetime.',  cond:{metric:'total_earned', threshold:1_000_000}, achieved:false },
+    fleet_of_gpus: { key:'fleet_of_gpus', name:'GPU Fleet',          desc:'Own 25 GPU Rigs.',           cond:{metric:'gpu_owned', threshold:25}, achieved:false },
+    research_org:  { key:'research_org',  name:'Research Org',       desc:'Own 10 Researchers.',        cond:{metric:'researcher_owned', threshold:10}, achieved:false },
+    go_public:     { key:'go_public',     name:'Ring the Bell',      desc:'Do your first IPO.',         cond:{metric:'reputation', threshold:1}, achieved:false },
+  };
+
+  // ------------------ State ------------------
+  const State = {
+    funding:0,
+    total_earned:0,
+    reputation:0,
+    click_power:1,
+    number_format:'compact',
+    autosave_sec:30,
+    lastTick:performance.now(),
+    gens:structuredClone(Generators),
+    upgs:structuredClone(Upgrades),
+    achs:structuredClone(Achievements)
+  };
+
+  function prestigeMultiplier(){ return 1 + 0.1 * State.reputation; }
+  function productionMultiplier(){
+    let m = prestigeMultiplier();
+    for(const u of Object.values(State.upgs)) if(u.purchased) m *= (u.mult||1);
+    return m;
+  }
+  function clickValue(){
+    let base = State.click_power;
+    for(const u of Object.values(State.upgs)) if(u.purchased) base += (u.addClick||0);
+    return base * productionMultiplier();
+  }
+  function totalEPS(){
+    let base = 0;
+    for(const g of Object.values(State.gens)) base += (g.baseEPS * g.owned);
+    return base * productionMultiplier();
+  }
+  function nextGenCost(g){ return g.baseCost * (g.costMult ** g.owned); }
+  function canAfford(x){ return State.funding + 1e-9 >= x; }
+  function spend(x){ if(canAfford(x)){ State.funding -= x; return true;} return false; }
+  function prestigePreview(){ return Math.floor(Math.sqrt(State.total_earned / 1_000_000)); }
+  function prestigeProgress(){ const next=((State.reputation+1)**2)*1_000_000, prev=(State.reputation**2)*1_000_000; return Math.max(0, Math.min(1,(State.total_earned-prev)/Math.max(1,next-prev))); }
+
+  // ------------------ Format ------------------
+  function humanize(n, mode=State.number_format){
+    if(mode==='full') return n.toLocaleString(undefined,{maximumFractionDigits:2});
+    const abs=Math.abs(n);
+    if(abs<1000) return Math.round(n).toString();
+    const units=['K','M','B','T','Q'];
+    let u=-1; while(Math.abs(n)>=1000 && u<units.length-1){ n/=1000; u++; }
+    const v = Math.abs(n)>=100 ? n.toFixed(0) : Math.abs(n)>=10 ? n.toFixed(1) : n.toFixed(2);
+    return v+units[u];
+  }
+
+  // ------------------ DOM Helpers ------------------
+  const $ = sel => document.querySelector(sel);
+  const quickGens = $('#quickGens'), quickUpg = $('#quickUpg'), statsBody=$('#statsBody');
+  const tabGens = $('#tabGens'), tabUpg = $('#tabUpg'), tabAch=$('#tabAch');
+
+  function rowGenerator(g){
+    const el = document.createElement('div'); el.className='row';
+    const name=document.createElement('div'); name.className='grow'; name.textContent=g.name;
+    const owned=document.createElement('div'); owned.textContent='x'+g.owned;
+    const eps=document.createElement('div'); eps.className='muted'; eps.textContent=g.baseEPS.toFixed(2)+'/s each';
+    const btn=document.createElement('button'); btn.textContent='Buy ($ '+humanize(nextGenCost(g))+')';
+    btn.onclick=()=>{ const cost=nextGenCost(State.gens[g.key]); if(spend(cost)){ State.gens[g.key].owned++; setStatus('Bought '+g.name); refresh(); checkAchievements(); } else { setStatus('Not enough funding.'); } };
+    el.append(name, owned, eps, btn); el.title=g.desc; return {el,owned,eps,btn,update(){ owned.textContent='x'+State.gens[g.key].owned; eps.textContent=g.baseEPS.toFixed(2)+'/s each'; btn.textContent='Buy ($ '+humanize(nextGenCost(State.gens[g.key]))+')'; btn.disabled=!canAfford(nextGenCost(State.gens[g.key])); }};
+  }
+  function rowUpgrade(u){
+    const el = document.createElement('div'); el.className='row';
+    const name=document.createElement('div'); name.className='grow'; name.innerHTML='<strong>'+u.name+'</strong> <span class="muted">— '+u.desc+'</span>';
+    const btn=document.createElement('button'); btn.textContent='Buy ($ '+humanize(u.cost)+')';
+    btn.onclick=()=>{ if(u.purchased) return; if(!upgradeUnlocked(u)){ setStatus('Prerequisites not met.'); return; } if(spend(u.cost)){ State.upgs[u.key].purchased=true; setStatus('Upgrade: '+u.name); refresh(); } else setStatus("Can't afford."); };
+    el.append(name, btn); el.title=u.desc; return {el,btn,update(){ const UU=State.upgs[u.key]; if(UU.purchased){ el.remove(); return; } btn.textContent='Buy ($ '+humanize(UU.cost)+')'; btn.disabled=!(upgradeUnlocked(UU) && canAfford(UU.cost)); }};
+  }
+  function rowAchievement(a){
+    const el=document.createElement('div'); el.className='row ach';
+    const chk=document.createElement('div'); chk.textContent=a.achieved?'✅':'❌';
+    const text=document.createElement('div'); text.innerHTML='<strong>'+a.name+'</strong> <span class="muted">— '+a.desc+'</span>';
+    el.append(chk,text); return {el,chk,update(){ chk.textContent=State.achs[a.key].achieved?'✅':'❌'; }};
+  }
+
+  // Build lists once
+  const genRows={}, genRowsQuick={}, upgRows={}, upgRowsQuick={}, achRows={};
+  for(const g of Object.values(State.gens)){ const r1=rowGenerator(g); genRows[g.key]=r1; tabGens.appendChild(r1.el); const r2=rowGenerator(g); genRowsQuick[g.key]=r2; quickGens.appendChild(r2.el);}    
+  for(const u of Object.values(State.upgs)){ const r1=rowUpgrade(u); upgRows[u.key]=r1; tabUpg.appendChild(r1.el); const r2=rowUpgrade(u); upgRowsQuick[u.key]=r2; quickUpg.appendChild(r2.el);}    
+  for(const a of Object.values(State.achs)){ const r=rowAchievement(a); achRows[a.key]=r; tabAch.appendChild(r.el);}    
+
+  // Tabs
+  document.querySelectorAll('.tabs .tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      const parent = t.parentElement; parent.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+      const target = t.dataset.tab;
+      const container = parent.nextElementSibling?.id ? parent.parentElement : parent.parentElement; // handle both sections
+      const all = parent.parentElement.querySelectorAll('.shop, .hidden');
+    });
+  });
+  // Generic show/hide for both tab bars
+  function setupTabBar(tabSelector){
+    const bar = document.querySelector(tabSelector);
+    bar.querySelectorAll('.tab').forEach(tab=>{
+      tab.addEventListener('click',()=>{
+        bar.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        tab.classList.add('active');
+        const name = tab.dataset.tab;
+        const host = bar.parentElement;
+        host.querySelectorAll('#'+name+', .shop, #stats').forEach(el=>{
+          if(el.id===name) el.classList.remove('hidden'); else if(el.classList.contains('shop')||el.id==='stats') el.classList.add('hidden');
+        });
+      });
+    });
+  }
+  setupTabBar('section.card:nth-of-type(1) .tabs');
+  setupTabBar('section.card:nth-of-type(2) .tabs');
+
+  // Actions
+  $('#btnClick').addEventListener('click', ()=>{ State.funding += clickValue(); State.total_earned += clickValue(); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
+  document.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); $('#btnClick').click(); }});
+  $('#btnPrestige').addEventListener('click', ()=>{
+    const prev = State.reputation; const preview = prestigePreview();
+    if(preview<=prev){ alert('IPO Not Ready: earn more lifetime funding.'); return; }
+    const gain = preview - prev; if(confirm(`Go public for +${gain} Reputation? This resets most progress.`)) prestige(gain);
+  });
+  $('#btnReset').addEventListener('click', ()=>{ if(confirm('Hard reset and delete local save?')){ localStorage.removeItem('ai_tycoon_web'); location.reload(); }});
+  $('#fmt').addEventListener('change', e=>{ State.number_format=e.target.value; refresh(); save(); });
+  $('#autosave').addEventListener('change', e=>{ let v=parseInt(e.target.value||30,10); v=Math.min(600,Math.max(5,v)); State.autosave_sec=v; $('#autosavePill').textContent='Autosave: '+v+'s'; save(); });
+  $('#btnExport').addEventListener('click', ()=>{ const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ai_tycoon_save.json'; a.click(); URL.revokeObjectURL(a.href); });
+  $('#btnImport').addEventListener('click', ()=> $('#importFile').click());
+  $('#importFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ deserialize(JSON.parse(rd.result)); save(); refresh(true); setStatus('Save imported.'); }catch(err){ alert('Invalid save file.'); } }; rd.readAsText(f); });
+
+  function upgradeUnlocked(u){ for(const [gk,need] of Object.entries(u.requires||{})){ if((State.gens[gk]?.owned||0) < need) return false; } return true; }
+
+  // Prestige
+  function prestige(gain){ State.reputation += gain; // reset most
+    const keepFmt=State.number_format, keepAuto=State.autosave_sec, keepAchs=State.achs;
+    Object.assign(State,{ funding:0,total_earned:0,click_power:1, number_format:keepFmt, autosave_sec:keepAuto, gens:structuredClone(Generators), upgs:structuredClone(Upgrades), achs:keepAchs });
+    if(State.achs.go_public) State.achs.go_public.achieved = true;
+    refresh(true); setStatus('IPO complete. +'+gain+' Reputation'); save(); }
+
+  // Loop
+  function loop(ts){ const dt=(ts-State.lastTick)/1000; State.lastTick=ts; State.funding += totalEPS()*dt; statsBody.textContent=`Current: $ ${humanize(State.funding)} | Lifetime: $ ${humanize(State.total_earned)} | EPS: $ ${humanize(totalEPS())} | Click: $ ${humanize(clickValue())}`; refreshHeader(); saveMaybe(); requestAnimationFrame(loop); }
+
+  // Refresh
+  function refresh(full){ refreshHeader(); for(const k in genRows){ visGen(genRows[k], State.gens[k]); visGen(genRowsQuick[k], State.gens[k]); } for(const k in upgRows){ visUpg(upgRows[k], State.upgs[k]); visUpg(upgRowsQuick[k], State.upgs[k]); } if(full){ for(const k in achRows) achRows[k].update(); }
+    $('#fmt').value=State.number_format; $('#autosave').value=State.autosave_sec; $('#autosavePill').textContent='Autosave: '+State.autosave_sec+'s'; $('#clickInfo').textContent='+ $'+humanize(clickValue())+' / click'; $('#ipoProg').value=prestigeProgress(); }
+  function refreshHeader(){ $('#statFunding').textContent='Funding: $ '+humanize(State.funding); $('#statEPS').textContent='EPS: $ '+humanize(totalEPS()); $('#statRep').textContent=`Reputation: ${State.reputation} (x${prestigeMultiplier().toFixed(1)})`; }
+  function visGen(row,g){ const visible = (State.total_earned>=g.unlockedAt) || (g.owned>0) || (g.unlockedAt===0); if(!row) return; row.el.style.display = visible?'' : 'none'; row.update(); }
+  function visUpg(row,u){ if(!row) return; if(u.purchased){ row.el.style.display='none'; } else { const visible = upgradeUnlocked(u) || (State.total_earned >= u.cost*0.4); row.el.style.display = visible?'' : 'none'; row.update(); } }
+
+  // Achievements
+  function checkAchievements(){ for(const a of Object.values(State.achs)){ if(a.achieved) continue; const m=a.cond.metric, t=a.cond.threshold; let v=0; if(m==='total_earned') v=State.total_earned; else if(m==='gpu_owned') v=State.gens.gpu.owned; else if(m==='researcher_owned') v=State.gens.researcher.owned; else if(m==='reputation') v=State.reputation; if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); } } }
+
+  // Status & Save
+  let lastSave=performance.now();
+  function setStatus(msg){ $('#status').textContent=msg; }
+  function serialize(){ return { funding:State.funding, total_earned:State.total_earned, reputation:State.reputation, click_power:State.click_power, number_format:State.number_format, autosave_sec:State.autosave_sec, gens:State.gens, upgs:State.upgs, achs:State.achs }; }
+  function deserialize(d){ Object.assign(State,{ funding:d.funding||0, total_earned:d.total_earned||0, reputation:d.reputation||0, click_power:d.click_power||1, number_format:d.number_format||'compact', autosave_sec:d.autosave_sec||30, gens:d.gens||Generators, upgs:d.upgs||Upgrades, achs:d.achs||Achievements }); }
+  function save(){ localStorage.setItem('ai_tycoon_web', JSON.stringify(serialize())); lastSave=performance.now(); }
+  function saveMaybe(){ if((performance.now()-lastSave)/1000 >= State.autosave_sec) save(); }
+  function load(){ const s=localStorage.getItem('ai_tycoon_web'); if(s){ try{ deserialize(JSON.parse(s)); }catch{} } }
+
+  // Init
+  load(); refresh(true); requestAnimationFrame(ts=>{ State.lastTick=ts; requestAnimationFrame(loop); });
+})();
+</script>
+</body>
+</html>
