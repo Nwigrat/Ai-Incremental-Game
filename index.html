@@ -43,6 +43,7 @@
   <header>
     <h1>🧠 AI Tycoon — Web</h1>
     <div class="stat" id="statFunding">Funding: $0</div>
+  <div class="stat" id="statRPS">RPS: $0/s</div>
     <div class="stat hide-xs" id="statEPS">EPS: $0/s</div>
     <div class="stat" id="statRep">Rep: 0 (x1.0)</div>
     <div class="ipo">
@@ -115,6 +116,9 @@
     datacenter:  { key:'datacenter',  name:'Mini Datacenter',      baseCost:4200,   costMult:1.18, baseEPS:45,   owned:0, unlockedAt:2000,  desc:'A few racks, lots of heat.' },
     foundation:  { key:'foundation',  name:'Foundation Model Team',baseCost:35000,  costMult:1.20, baseEPS:320,  owned:0, unlockedAt:20000, desc:'Mind‑blowing demos.' },
     planetary:   { key:'planetary',   name:'Planet‑Scale Inference',baseCost:250000, costMult:1.22, baseEPS:2400, owned:0, unlockedAt:150000,desc:'Edge accelerators everywhere.' },
+    nebula:      { key:'nebula',      name:'Nebula Supercluster',  baseCost:2000000, costMult:1.25, baseEPS:18000, owned:0, unlockedAt:1000000, desc:'Massive clustered inference.' },
+    exascale:    { key:'exascale',    name:'Exascale Cluster',     baseCost:12000000, costMult:1.27, baseEPS:120000, owned:0, unlockedAt:5000000, desc:'Exascale-level throughput.' },
+    global_mesh: { key:'global_mesh', name:'Global Mesh Fabric',   baseCost:80000000, costMult:1.30, baseEPS:800000, owned:0, unlockedAt:50000000, desc:'Planetary-wide inference fabric.' },
   };
 
   const Upgrades = {
@@ -123,6 +127,11 @@
     tensor_cores: { key:'tensor_cores', name:'Tensor Cores Everywhere',cost:4000,   desc:'x1.8 production.',           mult:1.8, addClick:0, requires:{gpu:10}, purchased:false },
     paper_rec:    { key:'paper_rec',    name:'SOTA Paper + Recsys',    cost:20000,  desc:'x2.2 production.',           mult:2.2, addClick:0, requires:{researcher:10}, purchased:false },
     moe_scaling:  { key:'moe_scaling',  name:'MoE Scaling Laws',       cost:120000, desc:'x2.5 production.',           mult:2.5, addClick:0, requires:{foundation:5}, purchased:false },
+    community_models: { key:'community_models', name:'Community Models',    cost:500000,  desc:'x1.4 production (open ecosystem).', mult:1.4, addClick:0, requires:{foundation:10}, purchased:false },
+    ops_automation:   { key:'ops_automation',   name:'Ops Automation',      cost:2000000, desc:'x1.6 production (automation).', mult:1.6, addClick:0, requires:{datacenter:10}, purchased:false },
+    federated_clients: { key:'federated_clients', name:'Federated Clients',  cost:10000000, desc:'x1.8 production (edge aggregation).', mult:1.8, addClick:0, requires:{planetary:10}, purchased:false },
+    auto_synthesis:   { key:'auto_synthesis',   name:'Auto Synthesis',      cost:50000000, desc:'x2.0 production (auto‑engineering).', mult:2.0, addClick:0, requires:{nebula:5}, purchased:false },
+    market_domination: { key:'market_domination', name:'Market Domination',   cost:250000000, desc:'x3.0 production (global reach).', mult:3.0, addClick:0, requires:{global_mesh:2}, purchased:false },
   };
 
   const Achievements = {
@@ -131,6 +140,11 @@
     fleet_of_gpus: { key:'fleet_of_gpus', name:'GPU Fleet',          desc:'Own 25 GPU Rigs.',           cond:{metric:'gpu_owned', threshold:25}, achieved:false },
     research_org:  { key:'research_org',  name:'Research Org',       desc:'Own 10 Researchers.',        cond:{metric:'researcher_owned', threshold:10}, achieved:false },
     go_public:     { key:'go_public',     name:'Ring the Bell',      desc:'Do your first IPO.',         cond:{metric:'reputation', threshold:1}, achieved:false },
+    nebula_first:  { key:'nebula_first',  name:'Nebula Born',        desc:'Own your first Nebula Supercluster.', cond:{metric:'nebula_owned', threshold:1}, achieved:false },
+    exascale_first:{ key:'exascale_first',name:'Exascale Operator',  desc:'Own your first Exascale Cluster.',    cond:{metric:'exascale_owned', threshold:1}, achieved:false },
+    mesh_fabric:   { key:'mesh_fabric',   name:'Global Fabric',      desc:'Deploy your first Global Mesh Fabric.', cond:{metric:'global_mesh_owned', threshold:1}, achieved:false },
+    community_release:{ key:'community_release', name:'Community Release', desc:'Purchase the Community Models upgrade.', cond:{metric:'community_models_purchased', threshold:1}, achieved:false },
+    market_saturation:{ key:'market_saturation', name:'Market Saturation', desc:'Purchase Market Domination upgrade.', cond:{metric:'market_domination_purchased', threshold:1}, achieved:false },
   };
 
   // ------------------ State ------------------
@@ -460,7 +474,17 @@
   // Refresh
   function refresh(full){ refreshHeader(); for(const k in genRows){ visGen(genRows[k], State.gens[k]); visGen(genRowsQuick[k], State.gens[k]); } for(const k in upgRows){ visUpg(upgRows[k], State.upgs[k]); visUpg(upgRowsQuick[k], State.upgs[k]); } if(full){ for(const k in achRows) achRows[k].update(); }
     $('#fmt').value=State.number_format; $('#autosave').value=State.autosave_sec; $('#autosavePill').textContent='Autosave: '+State.autosave_sec+'s'; $('#clickInfo').textContent='+ $'+humanize(clickValue())+' / click'; $('#ipoProg').value=prestigeProgress(); }
-  function refreshHeader(){ $('#statFunding').textContent='Funding: $ '+humanize(State.funding); $('#statEPS').textContent='EPS: $ '+humanize(totalEPS()); $('#statRep').textContent=`Rep: ${State.reputation} (x${prestigeMultiplier().toFixed(1)})`; }
+  function refreshHeader(){
+    $('#statFunding').textContent = 'Funding: $ '+humanize(State.funding);
+    // Revenue per second (RPS) shown next to funding
+    const eps = totalEPS();
+    const rpsText = 'RPS: $ '+humanize(eps) + '/s';
+    const rEl = document.getElementById('statRPS');
+    if(rEl) rEl.textContent = rpsText;
+    // keep existing EPS stat for compatibility
+    $('#statEPS').textContent = 'EPS: $ '+humanize(eps);
+    $('#statRep').textContent = `Rep: ${State.reputation} (x${prestigeMultiplier().toFixed(1)})`;
+  }
   function visGen(row,g){ const visible = (State.total_earned>=g.unlockedAt) || (g.owned>0) || (g.unlockedAt===0); if(!row) return; row.el.style.display = visible?'' : 'none'; row.update(); }
   function visUpg(row,u){ 
     if(!row) return;
@@ -475,7 +499,46 @@
   }
 
   // Achievements
-  function checkAchievements(){ for(const a of Object.values(State.achs)){ if(a.achieved) continue; const m=a.cond.metric, t=a.cond.threshold; let v=0; if(m==='total_earned') v=State.total_earned; else if(m==='gpu_owned') v=State.gens.gpu.owned; else if(m==='researcher_owned') v=State.gens.researcher.owned; else if(m==='reputation') v=State.reputation; if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); } } }
+  // Play a short bip sound using WebAudio
+  function playBip(){
+    try{
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if(!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880; // A5
+      gain.gain.value = 0.0001; // start very quiet to avoid click
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+      osc.start(now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      osc.stop(now + 0.2);
+      // Close context shortly after (some browsers require user interaction to resume audio anyway)
+      setTimeout(()=>{ try{ ctx.close(); }catch{} }, 500);
+    }catch(e){/* ignore */}
+  }
+
+  function checkAchievements(){
+    for(const a of Object.values(State.achs)){
+      if(a.achieved) continue;
+      const m=a.cond.metric, t=a.cond.threshold; let v=0;
+      if(m==='total_earned') v=State.total_earned;
+      else if(m==='gpu_owned') v=State.gens.gpu.owned;
+      else if(m==='researcher_owned') v=State.gens.researcher.owned;
+      else if(m==='reputation') v=State.reputation;
+      else if(m==='nebula_owned') v=State.gens.nebula?.owned||0;
+      else if(m==='exascale_owned') v=State.gens.exascale?.owned||0;
+      else if(m==='global_mesh_owned') v=State.gens.global_mesh?.owned||0;
+      else if(m==='community_models_purchased') v=State.upgs.community_models?.purchased?1:0;
+      else if(m==='market_domination_purchased') v=State.upgs.market_domination?.purchased?1:0;
+      if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); try{ playBip(); }catch{} }
+    }
+  }
 
   // Status & Save
   let lastSave=performance.now();
