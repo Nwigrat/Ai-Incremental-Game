@@ -18,6 +18,9 @@
   .ipo{margin-left:auto;display:flex;align-items:center;gap:8px;min-width:220px}
   .ipo label{font-size:12px;opacity:.8}
   progress{accent-color:var(--ok);height:10px;width:min(44vw,280px)}
+  /* IPO progress specific: make it slimmer */
+  #ipoProg{height:6px;width:min(34vw,180px);border-radius:6px;overflow:hidden}
+  #ipoPct{font-size:12px;margin-left:8px;opacity:0.9}
 
   main{display:grid;grid-template-columns: 1.1fr 1fr; gap:16px; padding:16px;}
   .card{background:var(--panel); border:1px solid #0008; border-radius:14px; padding:12px;}
@@ -44,12 +47,14 @@
     <h1>🧠 AI Tycoon — Web</h1>
     <div class="stat" id="statFunding">Funding: $0</div>
   <div class="stat" id="statRPS">RPS: $0/s</div>
-    <div class="stat hide-xs" id="statEPS">EPS: $0/s</div>
-    <div class="stat" id="statRep">Rep: 0 (x1.0)</div>
+  <div class="stat hide-xs" id="statEPS">EPS: $0/s</div>
+  <div class="stat" id="statUpgMult">Upg: x1.00</div>
+  <div class="stat" id="statRep">Rep: 0 (x1.0)</div>
     <div class="ipo">
-      <label for="ipoProg">IPO</label>
-      <progress id="ipoProg" max="1" value="0"></progress>
-      <button id="btnPrestige" aria-label="Go Public">Go Public</button>
+  <label for="ipoProg">IPO</label>
+  <progress id="ipoProg" max="1" value="0"></progress>
+  <span id="ipoPct">0%</span>
+  <button id="btnPrestige" aria-label="Go Public">Go Public</button>
     </div>
   </header>
 
@@ -119,6 +124,16 @@
     nebula:      { key:'nebula',      name:'Nebula Supercluster',  baseCost:2000000, costMult:1.25, baseEPS:18000, owned:0, unlockedAt:1000000, desc:'Massive clustered inference.' },
     exascale:    { key:'exascale',    name:'Exascale Cluster',     baseCost:12000000, costMult:1.27, baseEPS:120000, owned:0, unlockedAt:5000000, desc:'Exascale-level throughput.' },
     global_mesh: { key:'global_mesh', name:'Global Mesh Fabric',   baseCost:80000000, costMult:1.30, baseEPS:800000, owned:0, unlockedAt:50000000, desc:'Planetary-wide inference fabric.' },
+    cluster_palace: { key:'cluster_palace', name:'Cluster Palace',     baseCost:300000000, costMult:1.32, baseEPS:3500000, owned:0, unlockedAt:200000000, desc:'Massive cluster with specialized chips.' },
+    quantum_core:   { key:'quantum_core',   name:'Quantum Core',       baseCost:1200000000, costMult:1.35, baseEPS:18000000, owned:0, unlockedAt:900000000, desc:'Quantum-assisted inference.' },
+    hivemind:       { key:'hivemind',       name:'Hivemind Array',     baseCost:6000000000, costMult:1.38, baseEPS:90000000, owned:0, unlockedAt:3000000000, desc:'Collective multi-agent fabric.' },
+    autofab:        { key:'autofab',        name:'Autofabricator',     baseCost:25000000000, costMult:1.40, baseEPS:480000000, owned:0, unlockedAt:10000000000, desc:'Automated hardware and deployment.' },
+    synapse_farm:   { key:'synapse_farm',   name:'Synapse Farm',       baseCost:1e11, costMult:1.42, baseEPS:2.4e9, owned:0, unlockedAt:5e10, desc:'Neuromorphic data centers.' },
+    orbital_armada: { key:'orbital_armada', name:'Orbital Armada',     baseCost:6e11, costMult:1.45, baseEPS:1.2e10, owned:0, unlockedAt:2e11, desc:'Space-based compute nodes.' },
+    ai_governor:    { key:'ai_governor',    name:'AI Governor',        baseCost:3e12, costMult:1.48, baseEPS:6e10, owned:0, unlockedAt:1e12, desc:'Policy & orchestration layer.' },
+    terraform_net:  { key:'terraform_net',  name:'Terraform Network',  baseCost:1.5e13, costMult:1.5, baseEPS:3.2e11, owned:0, unlockedAt:5e12, desc:'Infrastructure shaping network.' },
+    singularity_hub: { key:'singularity_hub', name:'Singularity Hub',   baseCost:8e13, costMult:1.55, baseEPS:1.6e12, owned:0, unlockedAt:2e13, desc:'Beyond-exascale emergent compute.' },
+    meta_cloud:     { key:'meta_cloud',     name:'Meta Cloud',         baseCost:4e14, costMult:1.6, baseEPS:8e12, owned:0, unlockedAt:8e13, desc:'Cloud of clouds — near limitless.' },
   };
 
   const Upgrades = {
@@ -132,6 +147,15 @@
     federated_clients: { key:'federated_clients', name:'Federated Clients',  cost:10000000, desc:'x1.8 production (edge aggregation).', mult:1.8, addClick:0, requires:{planetary:10}, purchased:false },
     auto_synthesis:   { key:'auto_synthesis',   name:'Auto Synthesis',      cost:50000000, desc:'x2.0 production (auto‑engineering).', mult:2.0, addClick:0, requires:{nebula:5}, purchased:false },
     market_domination: { key:'market_domination', name:'Market Domination',   cost:250000000, desc:'x3.0 production (global reach).', mult:3.0, addClick:0, requires:{global_mesh:2}, purchased:false },
+  hyperconductor:    { key:'hyperconductor',    name:'Hyperconductor Grids', cost:1e9,      desc:'x1.5 production (efficient interconnect).', mult:1.5, addClick:0, requires:{exascale:3}, purchased:false },
+  zero_copy_ai:      { key:'zero_copy_ai',      name:'Zero-Copy AI',        cost:5e9,      desc:'x1.6 production (memory efficiency).', mult:1.6, addClick:0, requires:{exascale:6}, purchased:false },
+  planetary_resonance:{ key:'planetary_resonance',name:'Planetary Resonance',  cost:6e10,     desc:'x1.8 production (synchronized clusters).', mult:1.8, addClick:0, requires:{planetary:20}, purchased:false },
+  holo_optimizer:    { key:'holo_optimizer',    name:'Holo Optimizer',       cost:3e11,     desc:'x2.2 production (compiler-level boosts).', mult:2.2, addClick:0, requires:{nebula:10}, purchased:false },
+  autonomy_stack:    { key:'autonomy_stack',    name:'Autonomy Stack',       cost:1e12,     desc:'x2.5 production (self-managing systems).', mult:2.5, addClick:0, requires:{hivemind:3}, purchased:false },
+  terraformor_ai:    { key:'terraformor_ai',    name:'Terraformor AI',       cost:5e12,     desc:'x3.0 production (infrastructure shaping).', mult:3.0, addClick:0, requires:{terraform_net:2}, purchased:false },
+  singularity_core:  { key:'singularity_core',  name:'Singularity Core',     cost:2e13,     desc:'x4.0 production (emergent scaling).', mult:4.0, addClick:0, requires:{singularity_hub:1}, purchased:false },
+  meta_orchestrator:  { key:'meta_orchestrator',  name:'Meta Orchestrator',    cost:1e14,     desc:'x5.0 production (global orchestration).', mult:5.0, addClick:0, requires:{meta_cloud:1}, purchased:false },
+  ethical_shield:     { key:'ethical_shield',     name:'Ethical Shield',       cost:5e14,     desc:'x1.25 production (regulatory stability).', mult:1.25, addClick:0, requires:{ai_governor:1}, purchased:false },
   };
 
   const Achievements = {
@@ -145,6 +169,27 @@
     mesh_fabric:   { key:'mesh_fabric',   name:'Global Fabric',      desc:'Deploy your first Global Mesh Fabric.', cond:{metric:'global_mesh_owned', threshold:1}, achieved:false },
     community_release:{ key:'community_release', name:'Community Release', desc:'Purchase the Community Models upgrade.', cond:{metric:'community_models_purchased', threshold:1}, achieved:false },
     market_saturation:{ key:'market_saturation', name:'Market Saturation', desc:'Purchase Market Domination upgrade.', cond:{metric:'market_domination_purchased', threshold:1}, achieved:false },
+    // Late-game generator first-owns
+    cluster_palace_first: { key:'cluster_palace_first', name:'Cluster Palace Opened', desc:'Own your first Cluster Palace.', cond:{metric:'cluster_palace_owned', threshold:1}, achieved:false },
+    quantum_core_first:   { key:'quantum_core_first',   name:'Quantum Core Online', desc:'Own your first Quantum Core.', cond:{metric:'quantum_core_owned', threshold:1}, achieved:false },
+    hivemind_first:       { key:'hivemind_first',       name:'Hivemind Gestalt',    desc:'Own your first Hivemind Array.', cond:{metric:'hivemind_owned', threshold:1}, achieved:false },
+    autofab_first:        { key:'autofab_first',        name:'Autofabrication',      desc:'Own your first Autofabricator.', cond:{metric:'autofab_owned', threshold:1}, achieved:false },
+    synapse_farm_first:   { key:'synapse_farm_first',   name:'Synapse Farm Live',    desc:'Own your first Synapse Farm.', cond:{metric:'synapse_farm_owned', threshold:1}, achieved:false },
+    orbital_armada_first: { key:'orbital_armada_first', name:'Orbital Armada Deployed', desc:'Own your first Orbital Armada.', cond:{metric:'orbital_armada_owned', threshold:1}, achieved:false },
+    ai_governor_first:    { key:'ai_governor_first',    name:'Governor Online',      desc:'Own your first AI Governor.', cond:{metric:'ai_governor_owned', threshold:1}, achieved:false },
+    terraform_net_first:  { key:'terraform_net_first',  name:'Terraform Network Live', desc:'Own your first Terraform Network.', cond:{metric:'terraform_net_owned', threshold:1}, achieved:false },
+    singularity_hub_first:{ key:'singularity_hub_first', name:'Singularity Hub Awake', desc:'Own your first Singularity Hub.', cond:{metric:'singularity_hub_owned', threshold:1}, achieved:false },
+    meta_cloud_first:     { key:'meta_cloud_first',     name:'Meta Cloud Attached',   desc:'Own your first Meta Cloud.', cond:{metric:'meta_cloud_owned', threshold:1}, achieved:false },
+    // Upgrade purchases
+    hyperconductor_purchase:    { key:'hyperconductor_purchase',    name:'Hyperconductor Online',    desc:'Purchase Hyperconductor Grids upgrade.', cond:{metric:'hyperconductor_purchased', threshold:1}, achieved:false },
+    zero_copy_ai_purchase:      { key:'zero_copy_ai_purchase',      name:'Zero-Copy Enabled',        desc:'Purchase Zero-Copy AI upgrade.', cond:{metric:'zero_copy_ai_purchased', threshold:1}, achieved:false },
+    planetary_resonance_purchase:{ key:'planetary_resonance_purchase',name:'Planetary Resonance',     desc:'Purchase Planetary Resonance upgrade.', cond:{metric:'planetary_resonance_purchased', threshold:1}, achieved:false },
+    holo_optimizer_purchase:    { key:'holo_optimizer_purchase',    name:'Holo Optimized',           desc:'Purchase Holo Optimizer upgrade.', cond:{metric:'holo_optimizer_purchased', threshold:1}, achieved:false },
+    autonomy_stack_purchase:    { key:'autonomy_stack_purchase',    name:'Autonomy Achieved',        desc:'Purchase Autonomy Stack upgrade.', cond:{metric:'autonomy_stack_purchased', threshold:1}, achieved:false },
+    terraformor_ai_purchase:    { key:'terraformor_ai_purchase',    name:'Terraformor Activated',    desc:'Purchase Terraformor AI upgrade.', cond:{metric:'terraformor_ai_purchased', threshold:1}, achieved:false },
+    singularity_core_purchase:  { key:'singularity_core_purchase',  name:'Singularity Core Acquired', desc:'Purchase Singularity Core upgrade.', cond:{metric:'singularity_core_purchased', threshold:1}, achieved:false },
+    meta_orchestrator_purchase: { key:'meta_orchestrator_purchase', name:'Meta Orchestration',       desc:'Purchase Meta Orchestrator upgrade.', cond:{metric:'meta_orchestrator_purchased', threshold:1}, achieved:false },
+    ethical_shield_purchase:    { key:'ethical_shield_purchase',    name:'Ethical Shield Deployed',  desc:'Purchase Ethical Shield upgrade.', cond:{metric:'ethical_shield_purchased', threshold:1}, achieved:false },
   };
 
   // ------------------ State ------------------
@@ -344,11 +389,11 @@
     onTap(btn, ()=>{ 
       const info = getBuyInfo(State.gens[g.key]);
       if(info.amount <= 0 || !spend(info.cost)) {
-        setStatus('Not enough funding.');
+        // silent: do not show generic funding messages in footer
         return;
       }
       State.gens[g.key].owned += info.amount;
-      setStatus(`Bought ${info.amount}x ${g.name}`);
+      // silent: do not show generic purchase messages in footer (only upgrades/achievements remain)
       refresh();
       checkAchievements();
     });
@@ -387,7 +432,20 @@
     }
     
     btn.textContent = getReqText(u);
-    onTap(btn,()=>{ if(u.purchased) return; if(!upgradeUnlocked(u)){ setStatus('Prerequisites not met.'); return; } if(spend(u.cost)){ State.upgs[u.key].purchased=true; setStatus('Upgrade: '+u.name); refresh(); } else setStatus("Can't afford."); });
+    onTap(btn,()=>{
+      if(u.purchased) return;
+      if(!upgradeUnlocked(u)){
+        // silent: do not show prereq messages in footer
+        return;
+      }
+      if(spend(u.cost)){
+        State.upgs[u.key].purchased=true;
+        setStatus('Upgrade: '+u.name); // keep upgrade purchase message
+        refresh();
+      } else {
+        // silent: do not show can't afford messages in footer
+      }
+    });
     el.append(name, btn); el.title=u.desc; return {el,btn,update(){ const UU=State.upgs[u.key]; if(UU.purchased){ el.remove(); return; } btn.textContent=getReqText(UU); btn.disabled=!(upgradeUnlocked(UU) && canAfford(UU.cost)); }};
   }
   function rowAchievement(a){
@@ -399,7 +457,52 @@
 
   // Build lists once
   const genRows={}, genRowsQuick={}, upgRows={}, upgRowsQuick={}, achRows={};
-  for(const g of Object.values(State.gens)){ const r1=rowGenerator(g); genRows[g.key]=r1; tabGens.appendChild(r1.el); const r2=rowGenerator(g); genRowsQuick[g.key]=r2; quickGens.appendChild(r2.el);}    
+
+  // Late-game generator keys (grouped into a collapsible section)
+  const lateKeys = new Set(['cluster_palace','quantum_core','hivemind','autofab','synapse_farm','orbital_armada','ai_governor','terraform_net','singularity_hub','meta_cloud']);
+
+  // Create Late Game group in the main Generators tab
+  const lateWrapper = document.createElement('div'); lateWrapper.style.marginTop='8px';
+  const lateHeader = document.createElement('div'); lateHeader.style.display='flex'; lateHeader.style.alignItems='center'; lateHeader.style.justifyContent='space-between';
+  const lateTitle = document.createElement('div'); lateTitle.innerHTML = '<strong>Late Game</strong> <span class="muted">(collapsed)</span>'; lateHeader.appendChild(lateTitle);
+  const lateToggle = document.createElement('button'); lateToggle.textContent='Show'; lateToggle.style.minWidth='64px'; lateHeader.appendChild(lateToggle);
+  const lateContent = document.createElement('div'); lateContent.style.display='none'; lateContent.style.marginTop='8px'; lateContent.style.display='grid'; lateContent.style.gap='8px';
+  lateWrapper.appendChild(lateHeader); lateWrapper.appendChild(lateContent);
+  tabGens.appendChild(lateWrapper);
+
+  // Also create a small late group in the quick generator area
+  const lateQuickWrapper = document.createElement('div'); lateQuickWrapper.style.marginTop='6px';
+  const lateQuickHeader = document.createElement('div'); lateQuickHeader.style.display='flex'; lateQuickHeader.style.justifyContent='space-between';
+  const lqTitle = document.createElement('div'); lqTitle.innerHTML='<span class="muted">Late Game</span>'; lateQuickHeader.appendChild(lqTitle);
+  const lqToggle = document.createElement('button'); lqToggle.textContent='Show'; lqToggle.style.minWidth='56px'; lateQuickHeader.appendChild(lqToggle);
+  const lateQuickContent = document.createElement('div'); lateQuickContent.style.display='none'; lateQuickContent.style.marginTop='6px'; lateQuickContent.style.display='grid'; lateQuickContent.style.gap='6px';
+  lateQuickWrapper.appendChild(lateQuickHeader); lateQuickWrapper.appendChild(lateQuickContent);
+  quickGens.appendChild(lateQuickWrapper);
+
+  // Toggle behavior
+  lateToggle.addEventListener('click', ()=>{
+    const showing = lateContent.style.display !== 'none';
+    lateContent.style.display = showing ? 'none' : 'grid';
+    lateTitle.querySelector('.muted').textContent = showing ? '(collapsed)' : '(expanded)';
+    lateToggle.textContent = showing ? 'Show' : 'Hide';
+  });
+  lqToggle.addEventListener('click', ()=>{ const showing = lateQuickContent.style.display !== 'none'; lateQuickContent.style.display = showing ? 'none' : 'grid'; lqToggle.textContent = showing ? 'Show' : 'Hide'; });
+
+  for(const g of Object.values(State.gens)){
+    const r1=rowGenerator(g);
+    genRows[g.key]=r1;
+    // append to late group or main list depending on key
+    if(lateKeys.has(g.key)){
+      lateContent.appendChild(r1.el);
+    } else {
+      tabGens.appendChild(r1.el);
+    }
+
+    const r2=rowGenerator(g);
+    genRowsQuick[g.key]=r2;
+    if(lateKeys.has(g.key)) lateQuickContent.appendChild(r2.el); else quickGens.appendChild(r2.el);
+  }
+
   for(const u of Object.values(State.upgs)){ const r1=rowUpgrade(u); upgRows[u.key]=r1; tabUpg.appendChild(r1.el); const r2=rowUpgrade(u); upgRowsQuick[u.key]=r2; quickUpg.appendChild(r2.el);}    
   for(const a of Object.values(State.achs)){ const r=rowAchievement(a); achRows[a.key]=r; tabAch.appendChild(r.el);}    
 
@@ -420,7 +523,7 @@
   setupTabBar(document.querySelector('section.card:nth-of-type(2) .tabs'));
 
   // Actions
-  onTap($('#btnClick'), (e)=>{ const v = clickValue(); State.funding += v; State.total_earned += v; animateClick(v, e); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
+  onTap($('#btnClick'), (e)=>{ const v = clickValue(); State.funding += v; State.total_earned += v; animateClick(v, e); /* silent: don't show shipped message */ refresh(); checkAchievements(); saveMaybe(); });
   document.addEventListener('keydown', e=>{ 
     if(e.code==='Space'){ 
       e.preventDefault();
@@ -428,7 +531,7 @@
       State.funding += v;
       State.total_earned += v;
       animateClick(v, null);  // null event = center animation
-      setStatus('Shipped a feature ✨');
+      /* silent: don't show shipped message */
       refresh();
       checkAchievements();
       saveMaybe();
@@ -444,16 +547,16 @@
   $('#autosave').addEventListener('change', e=>{ let v=parseInt(e.target.value||30,10); v=Math.min(600,Math.max(5,v)); State.autosave_sec=v; $('#autosavePill').textContent='Autosave: '+v+'s'; save(); });
   onTap($('#btnExport'), ()=>{ const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ai_tycoon_save.json'; a.click(); URL.revokeObjectURL(a.href); });
   onTap($('#btnImport'), ()=> $('#importFile').click());
-  $('#importFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ deserialize(JSON.parse(rd.result)); save(); refresh(true); setStatus('Save imported.'); }catch(err){ alert('Invalid save file.'); } }; rd.readAsText(f); });
+  $('#importFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ deserialize(JSON.parse(rd.result)); save(); refresh(true); /* silent: don't show save/import message in footer */ }catch(err){ alert('Invalid save file.'); } }; rd.readAsText(f); });
 
   function upgradeUnlocked(u){ for(const [gk,need] of Object.entries(u.requires||{})){ if((State.gens[gk]?.owned||0) < need) return false; } return true; }
 
   // Prestige
   function prestige(gain){ State.reputation += gain; // reset most
     const keepFmt=State.number_format, keepAuto=State.autosave_sec, keepAchs=State.achs;
-    Object.assign(State,{ funding:0,total_earned:0,click_power:1, number_format:keepFmt, autosave_sec:keepAuto, gens:structuredClone(Generators), upgs:structuredClone(Upgrades), achs:keepAchs });
-    if(State.achs.go_public) State.achs.go_public.achieved = true;
-    refresh(true); setStatus('IPO complete. +'+gain+' Reputation'); save(); }
+  Object.assign(State,{ funding:0,total_earned:0,click_power:1, number_format:keepFmt, autosave_sec:keepAuto, gens:structuredClone(Generators), upgs:structuredClone(Upgrades), achs:keepAchs });
+  if(State.achs.go_public) State.achs.go_public.achieved = true;
+  refresh(true); /* silent: do not show prestige message in footer */ save(); }
 
   // Loop
   function loop(ts){
@@ -473,7 +576,7 @@
 
   // Refresh
   function refresh(full){ refreshHeader(); for(const k in genRows){ visGen(genRows[k], State.gens[k]); visGen(genRowsQuick[k], State.gens[k]); } for(const k in upgRows){ visUpg(upgRows[k], State.upgs[k]); visUpg(upgRowsQuick[k], State.upgs[k]); } if(full){ for(const k in achRows) achRows[k].update(); }
-    $('#fmt').value=State.number_format; $('#autosave').value=State.autosave_sec; $('#autosavePill').textContent='Autosave: '+State.autosave_sec+'s'; $('#clickInfo').textContent='+ $'+humanize(clickValue())+' / click'; $('#ipoProg').value=prestigeProgress(); }
+  $('#fmt').value=State.number_format; $('#autosave').value=State.autosave_sec; $('#autosavePill').textContent='Autosave: '+State.autosave_sec+'s'; $('#clickInfo').textContent='+ $'+humanize(clickValue())+' / click'; $('#ipoProg').value=prestigeProgress(); const pctEl=$('#ipoPct'); if(pctEl) pctEl.textContent = Math.floor(prestigeProgress()*100)+'%'; }
   function refreshHeader(){
     $('#statFunding').textContent = 'Funding: $ '+humanize(State.funding);
     // Revenue per second (RPS) shown next to funding
@@ -481,6 +584,11 @@
     const rpsText = 'RPS: $ '+humanize(eps) + '/s';
     const rEl = document.getElementById('statRPS');
     if(rEl) rEl.textContent = rpsText;
+    // compute upgrades-only multiplier (product of purchased upgrades' mult values)
+    let upgMult = 1;
+    for(const u of Object.values(State.upgs)) if(u.purchased) upgMult *= (u.mult || 1);
+    const upgEl = document.getElementById('statUpgMult');
+    if(upgEl) upgEl.textContent = 'Upg: x'+ upgMult.toFixed(2);
     // keep existing EPS stat for compatibility
     $('#statEPS').textContent = 'EPS: $ '+humanize(eps);
     $('#statRep').textContent = `Rep: ${State.reputation} (x${prestigeMultiplier().toFixed(1)})`;
@@ -534,6 +642,26 @@
       else if(m==='nebula_owned') v=State.gens.nebula?.owned||0;
       else if(m==='exascale_owned') v=State.gens.exascale?.owned||0;
       else if(m==='global_mesh_owned') v=State.gens.global_mesh?.owned||0;
+  else if(m==='cluster_palace_owned') v=State.gens.cluster_palace?.owned||0;
+  else if(m==='quantum_core_owned') v=State.gens.quantum_core?.owned||0;
+  else if(m==='hivemind_owned') v=State.gens.hivemind?.owned||0;
+  else if(m==='autofab_owned') v=State.gens.autofab?.owned||0;
+  else if(m==='synapse_farm_owned') v=State.gens.synapse_farm?.owned||0;
+  else if(m==='orbital_armada_owned') v=State.gens.orbital_armada?.owned||0;
+  else if(m==='ai_governor_owned') v=State.gens.ai_governor?.owned||0;
+  else if(m==='terraform_net_owned') v=State.gens.terraform_net?.owned||0;
+  else if(m==='singularity_hub_owned') v=State.gens.singularity_hub?.owned||0;
+  else if(m==='meta_cloud_owned') v=State.gens.meta_cloud?.owned||0;
+  // new upgrade purchase metrics
+  else if(m==='hyperconductor_purchased') v=State.upgs.hyperconductor?.purchased?1:0;
+  else if(m==='zero_copy_ai_purchased') v=State.upgs.zero_copy_ai?.purchased?1:0;
+  else if(m==='planetary_resonance_purchased') v=State.upgs.planetary_resonance?.purchased?1:0;
+  else if(m==='holo_optimizer_purchased') v=State.upgs.holo_optimizer?.purchased?1:0;
+  else if(m==='autonomy_stack_purchased') v=State.upgs.autonomy_stack?.purchased?1:0;
+  else if(m==='terraformor_ai_purchased') v=State.upgs.terraformor_ai?.purchased?1:0;
+  else if(m==='singularity_core_purchased') v=State.upgs.singularity_core?.purchased?1:0;
+  else if(m==='meta_orchestrator_purchased') v=State.upgs.meta_orchestrator?.purchased?1:0;
+  else if(m==='ethical_shield_purchased') v=State.upgs.ethical_shield?.purchased?1:0;
       else if(m==='community_models_purchased') v=State.upgs.community_models?.purchased?1:0;
       else if(m==='market_domination_purchased') v=State.upgs.market_domination?.purchased?1:0;
       if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); try{ playBip(); }catch{} }
