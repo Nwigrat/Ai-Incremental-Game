@@ -142,10 +142,51 @@
     number_format:'compact',
     autosave_sec:30,
     lastTick:performance.now(),
+    buyMode:'1x', // '1x', '10x', or 'max'
     gens:structuredClone(Generators),
     upgs:structuredClone(Upgrades),
     achs:structuredClone(Achievements)
   };
+
+  // Generator buying helpers
+  function calcBulkCost(g, amount) {
+    if (amount <= 0) return 0;
+    const r = g.costMult;
+    const a = g.baseCost;
+    const owned = g.owned;
+    
+    // For amount = 1, just return the next cost
+    if (amount === 1) {
+      return Math.ceil(a * (r ** owned));
+    }
+    
+    // Calculate sum of geometric sequence from owned to owned+amount-1
+    let total = 0;
+    for (let i = 0; i < amount; i++) {
+      total += a * (r ** (owned + i));
+    }
+    return Math.ceil(total);
+  }
+
+  function calcMaxAfford(g) {
+    const r = g.costMult;
+    const a = g.baseCost;
+    const owned = g.owned;
+    const available = State.funding;
+    
+    // Start with assuming we can buy at least 1
+    let amount = 1;
+    let totalCost = nextGenCost(g);
+    
+    // Keep increasing amount until we can't afford more
+    while (totalCost <= available) {
+      amount++;
+      totalCost = calcBulkCost(g, amount);
+    }
+    
+    // Back off by one since we went one too far
+    return Math.max(0, amount - 1);
+  }
 
   function prestigeMultiplier(){ return 1 + 0.1 * State.reputation; }
   function productionMultiplier(){ let m = prestigeMultiplier(); for(const u of Object.values(State.upgs)) if(u.purchased) m *= (u.mult||1); return m; }
@@ -173,6 +214,19 @@
   const $ = sel => document.querySelector(sel);
   const quickGens = $('#quickGens'), quickUpg = $('#quickUpg'), statsBody=$('#statsBody');
   const tabGens = $('#tabGens'), tabUpg = $('#tabUpg'), tabAch=$('#tabAch');
+
+  function onTap(el, handler) {
+    let last = 0;
+    const onClick = (e) => {
+      const now = performance.now();
+      if (now - last > 250) {
+        last = now;
+        handler(e);
+      }
+    };
+    el.addEventListener('click', onClick);
+    el.addEventListener('touchend', onClick);
+  }
 
   // ------------------ Click animation ------------------
   // creates a floating text near the click/tap position and removes it after the animation
@@ -205,16 +259,122 @@
     const name=document.createElement('div'); name.className='grow'; name.textContent=g.name;
     const owned=document.createElement('div'); owned.textContent='x'+g.owned;
     const eps=document.createElement('div'); eps.className='muted'; eps.textContent=g.baseEPS.toFixed(2)+'/s each';
-    const btn=document.createElement('button'); btn.textContent='Buy ($ '+humanize(nextGenCost(g))+')';
-    onTap(btn,()=>{ const cost=nextGenCost(State.gens[g.key]); if(spend(cost)){ State.gens[g.key].owned++; setStatus('Bought '+g.name); refresh(); checkAchievements(); } else { setStatus('Not enough funding.'); } });
-    el.append(name, owned, eps, btn); el.title=g.desc; return {el,owned,eps,btn,update(){ owned.textContent='x'+State.gens[g.key].owned; eps.textContent=g.baseEPS.toFixed(2)+'/s each'; btn.textContent='Buy ($ '+humanize(nextGenCost(State.gens[g.key]))+')'; btn.disabled=!canAfford(nextGenCost(State.gens[g.key])); }};
+    
+    // Buy amount switcher
+    const buyWrap = document.createElement('div');
+    buyWrap.style.display = 'flex';
+    buyWrap.style.gap = '4px';
+    buyWrap.style.alignItems = 'center';
+    
+    const modes = ['1x', '10x', 'max'];
+    modes.forEach(mode => {
+      const switcher = document.createElement('div');
+      switcher.className = 'pill';
+      switcher.style.cursor = 'pointer';
+      switcher.textContent = mode;
+      switcher.style.opacity = mode === State.buyMode ? '1' : '0.5';
+      onTap(switcher, () => {
+        State.buyMode = mode;
+        refresh();
+      });
+      buyWrap.appendChild(switcher);
+    });
+    
+    const btn=document.createElement('button');
+    
+    function getBuyInfo(gen) {
+      // Get current state of generator
+      const currentOwned = gen.owned;
+      const currentFunding = State.funding;
+      
+      if (State.buyMode === '1x') {
+        const cost = nextGenCost(gen);
+        return { amount: 1, cost };
+      }
+      if (State.buyMode === '10x') {
+        const cost = calcBulkCost(gen, 10);
+        return { amount: 10, cost };
+      }
+      
+      // max mode - calculate maximum affordable
+      let maxAmount = calcMaxAfford(gen);
+      if (maxAmount <= 0) {
+        return { amount: 0, cost: nextGenCost(gen) };
+      }
+      
+      const totalCost = calcBulkCost(gen, maxAmount);
+      console.log('Max buy:', { maxAmount, totalCost, funding: currentFunding }); // Debug info
+      return { amount: maxAmount, cost: totalCost };
+    }
+    
+    function updateBtn() {
+      const info = getBuyInfo(State.gens[g.key]);
+      if (info.amount <= 0) {
+        btn.textContent = 'Can\'t afford any';
+        btn.disabled = true;
+        return;
+      }
+      
+      let btnText;
+      if (State.buyMode === 'max') {
+        btnText = `Buy ${info.amount}x ($ ${humanize(info.cost)})`;
+      } else {
+        btnText = `Buy ($ ${humanize(info.cost)})`;
+      }
+      btn.textContent = btnText;
+      btn.disabled = !canAfford(info.cost);
+    }
+    
+    updateBtn();
+    
+    onTap(btn, ()=>{ 
+      const info = getBuyInfo(State.gens[g.key]);
+      if(info.amount <= 0 || !spend(info.cost)) {
+        setStatus('Not enough funding.');
+        return;
+      }
+      State.gens[g.key].owned += info.amount;
+      setStatus(`Bought ${info.amount}x ${g.name}`);
+      refresh();
+      checkAchievements();
+    });
+    
+    el.append(name, owned, eps, buyWrap, btn);
+    el.title=g.desc;
+    
+    return {
+      el,owned,eps,btn,
+      update(){
+        owned.textContent='x'+State.gens[g.key].owned;
+        eps.textContent=g.baseEPS.toFixed(2)+'/s each';
+        buyWrap.querySelectorAll('.pill').forEach(p => {
+          p.style.opacity = p.textContent === State.buyMode ? '1' : '0.5';
+        });
+        updateBtn();
+      }
+    };
   }
   function rowUpgrade(u){
     const el = document.createElement('div'); el.className='row';
     const name=document.createElement('div'); name.className='grow'; name.innerHTML='<strong>'+u.name+'</strong> <span class="muted">— '+u.desc+'</span>';
-    const btn=document.createElement('button'); btn.textContent='Buy ($ '+humanize(u.cost)+')';
+    const btn=document.createElement('button');
+    
+    function getReqText(upg) {
+      const reqs = [];
+      for(const [gk,need] of Object.entries(upg.requires||{})) {
+        const gen = Generators[gk];
+        const owned = (State.gens[gk]?.owned||0);
+        if(owned < need) {
+          reqs.push(`${need} ${gen.name}`);
+        }
+      }
+      const costText = '$ ' + humanize(upg.cost);
+      return reqs.length ? `Buy (${costText}, needs ${reqs.join(', ')})` : `Buy (${costText})`;
+    }
+    
+    btn.textContent = getReqText(u);
     onTap(btn,()=>{ if(u.purchased) return; if(!upgradeUnlocked(u)){ setStatus('Prerequisites not met.'); return; } if(spend(u.cost)){ State.upgs[u.key].purchased=true; setStatus('Upgrade: '+u.name); refresh(); } else setStatus("Can't afford."); });
-    el.append(name, btn); el.title=u.desc; return {el,btn,update(){ const UU=State.upgs[u.key]; if(UU.purchased){ el.remove(); return; } btn.textContent='Buy ($ '+humanize(UU.cost)+')'; btn.disabled=!(upgradeUnlocked(UU) && canAfford(UU.cost)); }};
+    el.append(name, btn); el.title=u.desc; return {el,btn,update(){ const UU=State.upgs[u.key]; if(UU.purchased){ el.remove(); return; } btn.textContent=getReqText(UU); btn.disabled=!(upgradeUnlocked(UU) && canAfford(UU.cost)); }};
   }
   function rowAchievement(a){
     const el=document.createElement('div'); el.className='row ach';
@@ -246,8 +406,20 @@
   setupTabBar(document.querySelector('section.card:nth-of-type(2) .tabs'));
 
   // Actions
-  $('#btnClick').addEventListener('click', (e)=>{ const v = clickValue(); State.funding += v; State.total_earned += v; animateClick(v, e); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
-  document.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); $('#btnClick').click(); }});
+  onTap($('#btnClick'), (e)=>{ const v = clickValue(); State.funding += v; State.total_earned += v; animateClick(v, e); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
+  document.addEventListener('keydown', e=>{ 
+    if(e.code==='Space'){ 
+      e.preventDefault();
+      const v = clickValue();
+      State.funding += v;
+      State.total_earned += v;
+      animateClick(v, null);  // null event = center animation
+      setStatus('Shipped a feature ✨');
+      refresh();
+      checkAchievements();
+      saveMaybe();
+    }
+  });
   onTap($('#btnPrestige'), ()=>{
     const prev = State.reputation; const preview = prestigePreview();
     if(preview<=prev){ alert('IPO Not Ready: earn more lifetime funding.'); return; }
@@ -278,7 +450,11 @@
     // Add passive income to lifetime total so achievements/prestige count it
     State.total_earned += passive;
     statsBody.textContent=`Current: $ ${humanize(State.funding)} | Lifetime: $ ${humanize(State.total_earned)} | EPS: $ ${humanize(totalEPS())} | Click: $ ${humanize(clickValue())}`;
-    refreshHeader(); saveMaybe(); requestAnimationFrame(loop);
+    refreshHeader();
+    // Refresh upgrades more frequently to check unlock conditions
+    refresh(false);
+    saveMaybe();
+    requestAnimationFrame(loop);
   }
 
   // Refresh
@@ -286,7 +462,17 @@
     $('#fmt').value=State.number_format; $('#autosave').value=State.autosave_sec; $('#autosavePill').textContent='Autosave: '+State.autosave_sec+'s'; $('#clickInfo').textContent='+ $'+humanize(clickValue())+' / click'; $('#ipoProg').value=prestigeProgress(); }
   function refreshHeader(){ $('#statFunding').textContent='Funding: $ '+humanize(State.funding); $('#statEPS').textContent='EPS: $ '+humanize(totalEPS()); $('#statRep').textContent=`Rep: ${State.reputation} (x${prestigeMultiplier().toFixed(1)})`; }
   function visGen(row,g){ const visible = (State.total_earned>=g.unlockedAt) || (g.owned>0) || (g.unlockedAt===0); if(!row) return; row.el.style.display = visible?'' : 'none'; row.update(); }
-  function visUpg(row,u){ if(!row) return; if(u.purchased){ row.el.style.display='none'; } else { const visible = upgradeUnlocked(u) || (State.total_earned >= u.cost*0.4); row.el.style.display = visible?'' : 'none'; row.update(); } }
+  function visUpg(row,u){ 
+    if(!row) return;
+    if(u.purchased){
+      row.el.style.display='none';
+    } else {
+      // Show upgrade if we can afford 40% of cost OR if requirements are met
+      const visible = (State.total_earned >= u.cost*0.4) || upgradeUnlocked(u);
+      row.el.style.display = visible ? '' : 'none';
+      row.update();
+    }
+  }
 
   // Achievements
   function checkAchievements(){ for(const a of Object.values(State.achs)){ if(a.achieved) continue; const m=a.cond.metric, t=a.cond.threshold; let v=0; if(m==='total_earned') v=State.total_earned; else if(m==='gpu_owned') v=State.gens.gpu.owned; else if(m==='researcher_owned') v=State.gens.researcher.owned; else if(m==='reputation') v=State.reputation; if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); } } }
