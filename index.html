@@ -37,25 +37,6 @@
   a{color:#9ecbff}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .ach{display:flex;gap:8px;align-items:center}
-  /* Responsive */
-  @media (max-width: 980px){
-    main{grid-template-columns:1fr; padding:12px; gap:12px}
-    .shop{max-height:42vh}
-    .grid2{grid-template-columns:1fr}
-    .stat.hide-xs{display:inline}
-    .ipo{width:100%; order:10}
-    progress{width:100%}
-    #btnClick{font-size:18px}
-  }
-  @media (max-height: 700px){ .shop{max-height:36vh} }
-  @media (min-width: 1600px){ body{font-size:18px} }
-  
-  /* Click/tap floating text animation */
-  #animLayer{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999}
-  .float-text{position:absolute;transform:translate(-50%,0);background:transparent;color:var(--ok);font-weight:700;padding:6px 10px;border-radius:8px;text-shadow:0 6px 18px rgba(0,0,0,.6);opacity:0;will-change:transform,opacity}
-  .float-text.show{animation:floatUp 900ms cubic-bezier(.2,.9,.2,1) forwards}
-  @keyframes floatUp{0%{transform:translate(-50%,0) scale(1);opacity:1}80%{transform:translate(-50%,-48px) scale(1.05);opacity:0.9}100%{transform:translate(-50%,-72px) scale(1);opacity:0}}
-
 </style>
 </head>
 <body>
@@ -219,13 +200,6 @@
     }catch(e){/* silent */}
   }
 
-  function onTap(el, handler){
-    let last=0;
-    el.addEventListener('pointerdown', e=>{ const now=performance.now(); if(now-last>250){ last=now; handler(e); } });
-    // fallback (keyboard/assistive)
-    el.addEventListener('click', e=>{ const now=performance.now(); if(now-last>250){ last=now; handler(e); } });
-  }
-
   function rowGenerator(g){
     const el = document.createElement('div'); el.className='row';
     const name=document.createElement('div'); name.className='grow'; name.textContent=g.name;
@@ -272,7 +246,7 @@
   setupTabBar(document.querySelector('section.card:nth-of-type(2) .tabs'));
 
   // Actions
-  onTap($('#btnClick'), (e)=>{ const v=clickValue(); State.funding += v; State.total_earned += v; animateClick(v,e); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
+  $('#btnClick').addEventListener('click', (e)=>{ const v = clickValue(); State.funding += v; State.total_earned += v; animateClick(v, e); setStatus('Shipped a feature ✨'); refresh(); checkAchievements(); saveMaybe(); });
   document.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); $('#btnClick').click(); }});
   onTap($('#btnPrestige'), ()=>{
     const prev = State.reputation; const preview = prestigePreview();
