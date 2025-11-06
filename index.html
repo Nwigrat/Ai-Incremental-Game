@@ -40,6 +40,40 @@
   a{color:#9ecbff}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .ach{display:flex;gap:8px;align-items:center}
+
+  /* Lore card styling */
+  #loreLayer{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9998}
+  .lore-card{
+    position:fixed;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%) scale(0.9);
+    background:var(--panel);
+    border:1px solid #456;
+    border-radius:16px;
+    padding:20px;
+    width:min(500px, 90vw);
+    box-shadow:0 4px 32px #0008;
+    opacity:0;
+    transition:all 0.3s ease-out;
+  }
+  .lore-card.show{
+    opacity:1;
+    transform:translate(-50%,-50%) scale(1);
+  }
+  .lore-card .title{
+    font-size:18px;
+    margin-bottom:12px;
+    color:var(--ok);
+  }
+  .lore-card .body{
+    line-height:1.5;
+    margin-bottom:16px;
+  }
+  .lore-card button{
+    float:right;
+    padding:8px 16px;
+    pointer-events:auto;
+  }
 </style>
 </head>
 <body>
@@ -110,6 +144,9 @@
 
   <!-- Animation layer for click effects -->
   <div id="animLayer" aria-hidden="true"></div>
+  
+  <!-- Lore card layer -->
+  <div id="loreLayer" aria-hidden="true"></div>
 
 <script>
 (function(){
@@ -158,27 +195,67 @@
   ethical_shield:     { key:'ethical_shield',     name:'Ethical Shield',       cost:5e14,     desc:'x1.25 production (regulatory stability).', mult:1.25, addClick:0, requires:{ai_governor:1}, purchased:false },
   };
 
+  // Lore entries mapped to milestones
+  const Lore = {
+    startup: {
+      title: "The Garage Days",
+      body: "Your journey begins in a small garage, armed with nothing but a laptop and a vision. The air is thick with the smell of coffee and determination. You've heard the whispers about AI changing the world - now it's your turn to be part of that change."
+    },
+    first_gpu: {
+      title: "Gaming Hardware, Serious Business",
+      body: "Repurposing gaming GPUs for AI training - it's not pretty, but it works. The constant whir of fans and the warm glow of status LEDs fill your workspace. Your neighbors are starting to complain about the power bills, but you're too excited about the training results to care."
+    },
+    research_milestone: {
+      title: "Breakthrough Paper",
+      body: "Your team's research paper hits the front page of arXiv. The comment section is a battlefield, but the metrics don't lie. You've found something new, something important. The big labs are starting to notice."
+    },
+    datacenter_era: {
+      title: "From Garage to Datacenter",
+      body: "The first rack of servers arrives at your new datacenter. The scale is different here - measured in petaflops instead of gigaflops. As you walk through the cold aisles, you realize: this is no longer just a startup. This is becoming something more."
+    },
+    foundation_breakthrough: {
+      title: "The Foundation Model",
+      body: "Your foundation model shows signs of emergent behavior nobody predicted. Late at night, reviewing the training logs, you see patterns that shouldn't be there. The model is learning things you never taught it. Both exciting and terrifying."
+    },
+    planetary_scale: {
+      title: "Going Global",
+      body: "Edge devices across the planet now run your inference models. Every smartphone, every IoT device, every connected car - they're all part of your network now. The network effect is exponential, and the data flows like rivers."
+    },
+    quantum_awakening: {
+      title: "Quantum Horizons",
+      body: "The quantum core spins up for the first time. Classical bits yield to qubits, and the possibilities explode. In the quantum realm, all futures exist simultaneously - until you measure them. The hard part is choosing which future to collapse into reality."
+    },
+    hivemind_emergence: {
+      title: "The Collective",
+      body: "Individual AIs begin to form spontaneous connections. They're sharing knowledge, resources, even developing specialized roles. It's not just parallel processing anymore - it's genuine emergence. The hivemind is awakening."
+    },
+    singularity_threshold: {
+      title: "Event Horizon",
+      body: "The metrics stopped making sense three days ago. Your models are improving themselves faster than you can measure. The graphs all point vertical, and for the first time, you wonder: have we gone too far? Then you realize: we're just getting started."
+    }
+  };
+
   const Achievements = {
-    first_click:   { key:'first_click',   name:'Hello, World(coin)', desc:'Click to earn funding once.', cond:{metric:'total_earned', threshold:1}, achieved:false },
-    first_million: { key:'first_million', name:'First Million',      desc:'Reach $1,000,000 lifetime.',  cond:{metric:'total_earned', threshold:1_000_000}, achieved:false },
-    fleet_of_gpus: { key:'fleet_of_gpus', name:'GPU Fleet',          desc:'Own 25 GPU Rigs.',           cond:{metric:'gpu_owned', threshold:25}, achieved:false },
-    research_org:  { key:'research_org',  name:'Research Org',       desc:'Own 10 Researchers.',        cond:{metric:'researcher_owned', threshold:10}, achieved:false },
-    go_public:     { key:'go_public',     name:'Ring the Bell',      desc:'Do your first IPO.',         cond:{metric:'reputation', threshold:1}, achieved:false },
-    nebula_first:  { key:'nebula_first',  name:'Nebula Born',        desc:'Own your first Nebula Supercluster.', cond:{metric:'nebula_owned', threshold:1}, achieved:false },
-    exascale_first:{ key:'exascale_first',name:'Exascale Operator',  desc:'Own your first Exascale Cluster.',    cond:{metric:'exascale_owned', threshold:1}, achieved:false },
-    mesh_fabric:   { key:'mesh_fabric',   name:'Global Fabric',      desc:'Deploy your first Global Mesh Fabric.', cond:{metric:'global_mesh_owned', threshold:1}, achieved:false },
+    first_click:   { key:'first_click',   name:'Hello, World(coin)', desc:'Click to earn funding once.', cond:{metric:'total_earned', threshold:1}, achieved:false, lore:'startup' },
+    first_million: { key:'first_million', name:'First Million',      desc:'Reach $1,000,000 lifetime.',  cond:{metric:'total_earned', threshold:1_000_000}, achieved:false, lore:'startup' },
+    fleet_of_gpus: { key:'fleet_of_gpus', name:'GPU Fleet',          desc:'Own 25 GPU Rigs.',           cond:{metric:'gpu_owned', threshold:25}, achieved:false, lore:'first_gpu' },
+    research_org:  { key:'research_org',  name:'Research Org',       desc:'Own 10 Researchers.',        cond:{metric:'researcher_owned', threshold:10}, achieved:false, lore:'research_milestone' },
+    go_public:     { key:'go_public',     name:'Ring the Bell',      desc:'Do your first IPO.',         cond:{metric:'reputation', threshold:1}, achieved:false, lore:'datacenter_era' },
+    nebula_first:  { key:'nebula_first',  name:'Nebula Born',        desc:'Own your first Nebula Supercluster.', cond:{metric:'nebula_owned', threshold:1}, achieved:false, lore:'foundation_breakthrough' },
+    exascale_first:{ key:'exascale_first',name:'Exascale Operator',  desc:'Own your first Exascale Cluster.',    cond:{metric:'exascale_owned', threshold:1}, achieved:false, lore:'foundation_breakthrough' },
+    mesh_fabric:   { key:'mesh_fabric',   name:'Global Fabric',      desc:'Deploy your first Global Mesh Fabric.', cond:{metric:'global_mesh_owned', threshold:1}, achieved:false, lore:'planetary_scale' },
     community_release:{ key:'community_release', name:'Community Release', desc:'Purchase the Community Models upgrade.', cond:{metric:'community_models_purchased', threshold:1}, achieved:false },
     market_saturation:{ key:'market_saturation', name:'Market Saturation', desc:'Purchase Market Domination upgrade.', cond:{metric:'market_domination_purchased', threshold:1}, achieved:false },
     // Late-game generator first-owns
     cluster_palace_first: { key:'cluster_palace_first', name:'Cluster Palace Opened', desc:'Own your first Cluster Palace.', cond:{metric:'cluster_palace_owned', threshold:1}, achieved:false },
-    quantum_core_first:   { key:'quantum_core_first',   name:'Quantum Core Online', desc:'Own your first Quantum Core.', cond:{metric:'quantum_core_owned', threshold:1}, achieved:false },
-    hivemind_first:       { key:'hivemind_first',       name:'Hivemind Gestalt',    desc:'Own your first Hivemind Array.', cond:{metric:'hivemind_owned', threshold:1}, achieved:false },
+    quantum_core_first:   { key:'quantum_core_first',   name:'Quantum Core Online', desc:'Own your first Quantum Core.', cond:{metric:'quantum_core_owned', threshold:1}, achieved:false, lore:'quantum_awakening' },
+    hivemind_first:       { key:'hivemind_first',       name:'Hivemind Gestalt',    desc:'Own your first Hivemind Array.', cond:{metric:'hivemind_owned', threshold:1}, achieved:false, lore:'hivemind_emergence' },
     autofab_first:        { key:'autofab_first',        name:'Autofabrication',      desc:'Own your first Autofabricator.', cond:{metric:'autofab_owned', threshold:1}, achieved:false },
     synapse_farm_first:   { key:'synapse_farm_first',   name:'Synapse Farm Live',    desc:'Own your first Synapse Farm.', cond:{metric:'synapse_farm_owned', threshold:1}, achieved:false },
     orbital_armada_first: { key:'orbital_armada_first', name:'Orbital Armada Deployed', desc:'Own your first Orbital Armada.', cond:{metric:'orbital_armada_owned', threshold:1}, achieved:false },
     ai_governor_first:    { key:'ai_governor_first',    name:'Governor Online',      desc:'Own your first AI Governor.', cond:{metric:'ai_governor_owned', threshold:1}, achieved:false },
     terraform_net_first:  { key:'terraform_net_first',  name:'Terraform Network Live', desc:'Own your first Terraform Network.', cond:{metric:'terraform_net_owned', threshold:1}, achieved:false },
-    singularity_hub_first:{ key:'singularity_hub_first', name:'Singularity Hub Awake', desc:'Own your first Singularity Hub.', cond:{metric:'singularity_hub_owned', threshold:1}, achieved:false },
+    singularity_hub_first:{ key:'singularity_hub_first', name:'Singularity Hub Awake', desc:'Own your first Singularity Hub.', cond:{metric:'singularity_hub_owned', threshold:1}, achieved:false, lore:'singularity_threshold' },
     meta_cloud_first:     { key:'meta_cloud_first',     name:'Meta Cloud Attached',   desc:'Own your first Meta Cloud.', cond:{metric:'meta_cloud_owned', threshold:1}, achieved:false },
     // Upgrade purchases
     hyperconductor_purchase:    { key:'hyperconductor_purchase',    name:'Hyperconductor Online',    desc:'Purchase Hyperconductor Grids upgrade.', cond:{metric:'hyperconductor_purchased', threshold:1}, achieved:false },
@@ -631,6 +708,41 @@
     }catch(e){/* ignore */}
   }
 
+  // Show a lore card for a specific story beat
+  function showLoreCard(loreKey) {
+    const lore = Lore[loreKey];
+    if (!lore) return;
+    
+    // Create and style the card
+    const card = document.createElement('div');
+    card.className = 'lore-card';
+    card.innerHTML = `
+      <div class="title">${lore.title}</div>
+      <div class="body">${lore.body}</div>
+      <button>Continue</button>
+    `;
+    
+    // Add to lore layer
+    const layer = document.getElementById('loreLayer');
+    if (!layer) return;
+    
+    // Remove any existing cards
+    layer.querySelectorAll('.lore-card').forEach(c => c.remove());
+    
+    // Add new card and animate in
+    layer.appendChild(card);
+    requestAnimationFrame(() => card.classList.add('show'));
+    
+    // Setup continue button
+    const btn = card.querySelector('button');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        card.classList.remove('show');
+        setTimeout(() => card.remove(), 300);
+      }, { once: true });
+    }
+  }
+
   function checkAchievements(){
     for(const a of Object.values(State.achs)){
       if(a.achieved) continue;
@@ -664,7 +776,20 @@
   else if(m==='ethical_shield_purchased') v=State.upgs.ethical_shield?.purchased?1:0;
       else if(m==='community_models_purchased') v=State.upgs.community_models?.purchased?1:0;
       else if(m==='market_domination_purchased') v=State.upgs.market_domination?.purchased?1:0;
-      if(v>=t){ a.achieved=true; setStatus('Achievement: '+a.name+' 🏆'); achRows[a.key]?.update(); try{ playBip(); }catch{} }
+      if(v>=t){ 
+        // Achievement unlocked!
+        a.achieved = true;
+        setStatus('Achievement: '+a.name+' 🏆');
+        achRows[a.key]?.update();
+        
+        // Play achievement sound
+        try { playBip(); } catch {}
+        
+        // Show lore card if this achievement has associated lore
+        if (a.lore) {
+          showLoreCard(a.lore);
+        }
+      }
     }
   }
 
